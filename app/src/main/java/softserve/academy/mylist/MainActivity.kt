@@ -8,15 +8,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,7 +65,7 @@ class MainActivity : ComponentActivity() {
             ListTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                   Surface(modifier = Modifier.padding(innerPadding)) {
-                      Text("Hello Android")
+                      ShoppingListScreen()
                   }
                 }
             }
@@ -116,6 +119,8 @@ abstract class ShoppingDatabase : RoomDatabase() {
     }
 }
 
+
+
 class ShoppingListViewModel(application: Application) : AndroidViewModel(application) {
     private val dao: ShoppingDao = ShoppingDatabase.getInstance(application).shoppingDao()
     private val _shoppingList = mutableStateListOf<ShoppingItem>()
@@ -133,14 +138,13 @@ class ShoppingListViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-
-    //    val shoppingList = mutableStateListOf(
-//        ShoppingItem("Молоко"),
-//        ShoppingItem("Хліб"),
-//        ShoppingItem("Яблука"),
-//        ShoppingItem("Олія"),
-//        ShoppingItem("Рис"),
-//    )
+    fun addItem(name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val newItem = ShoppingItem(name = name)
+            dao.insertItem(newItem)
+            loadShoppingList()
+        }
+    }
 
     fun toggleBought(index: Int) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -193,6 +197,29 @@ class ShoppingListViewModelFactory(private val application: Application) :
 }
 
 @Composable
+fun AddItemButton(addItem: (String) -> Unit = {}) {
+    var text by remember { mutableStateOf("") }
+
+    Column {
+        OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+            label = { Text("Add Item") }
+        )
+        Button(onClick = {
+            if (text.isNotEmpty()) {
+                addItem(text)
+                text = ""
+            }
+        })
+        {
+            Text("Add")
+        }
+    }
+}
+
+
+@Composable
 fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
     factory = ShoppingListViewModelFactory(LocalContext.current
         .applicationContext as Application)
@@ -202,6 +229,9 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        item {
+            AddItemButton { viewModel.addItem(it) }
+        }
         itemsIndexed(viewModel.shoppingList) { ix, item ->
             ShoppingItemCard(item) {
                 viewModel.toggleBought(ix)
