@@ -154,20 +154,34 @@ class ShoppingListViewModel(application: Application) : AndroidViewModel(applica
             _shoppingList[index] = updatedItem
         }
     }
+
+    fun deleteItem(item: ShoppingItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.deleteItem(item)
+            loadShoppingList()
+        }
+    }
 }
 
 @Composable
 fun ShoppingItemCard(
     item: ShoppingItem,
-    onToggleBought: () -> Unit = {}
+    onToggleBought: () -> Unit = {},
+    onDelete: () -> Unit = {}
     ) {
+
+    val backgroundColor = if (item.isBought) {
+        Color(0xFFC8E6C9) // Світло-зелений для куплених товарів
+    } else {
+        MaterialTheme.colorScheme.surfaceDim // Стандартний колір для некуплених
+    }
 
     Row (
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
             .background(
-                MaterialTheme.colorScheme.surfaceDim,
+                backgroundColor,
                 MaterialTheme.shapes.large
             )
             .clickable { onToggleBought() }
@@ -180,8 +194,16 @@ fun ShoppingItemCard(
         Text(
             text = item.name,
             modifier = Modifier.weight(1f),
-            fontSize = 18.sp
+            fontSize = 18.sp,
+            color = if (item.isBought) Color.Gray else MaterialTheme.colorScheme.onSurface
         )
+
+        Button(
+            onClick = onDelete,
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            Text("Delete")
+        }
     }
 }
 
@@ -233,9 +255,11 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
             AddItemButton { viewModel.addItem(it) }
         }
         itemsIndexed(viewModel.shoppingList) { ix, item ->
-            ShoppingItemCard(item) {
-                viewModel.toggleBought(ix)
-            }
+            ShoppingItemCard(
+                item = item,
+                onToggleBought = { viewModel.toggleBought(ix) },
+                onDelete = { viewModel.deleteItem(item) }
+            )
         }
     }
 }
